@@ -1,11 +1,10 @@
 package com.kuro.signreader;
 
-import android.Manifest;
-import android.app.Activity;
+import android.content.Intent;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.Signature;
-import android.os.Build;
+import android.net.Uri;
 import android.os.Bundle;
 import android.util.Base64;
 import android.view.View;
@@ -18,22 +17,17 @@ import androidx.annotation.Nullable;
 
 import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
-import java.io.File;
-import java.io.FileOutputStream;
 
 public class MainActivity extends Activity {
     EditText appPkg;
     Button btnGet, btnSave;
     TextView resultBase64, resultCpp;
+    private static final int CREATE_FILE_REQUEST_CODE = 1001;
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.main_activity);
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            requestPermissions(new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE}, 1);
-        }
 
         appPkg = findViewById(R.id.appPkg);
         resultBase64 = findViewById(R.id.resultBase64);
@@ -84,19 +78,50 @@ public class MainActivity extends Activity {
         btnSave.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                try {
-                    String path = appPkg.getText().toString() + "_signatures.txt";
-                    StringBuilder sb = new StringBuilder();
-                    sb.append(resultBase64.getText().toString() + "\n");
-                    sb.append(resultCpp.getText().toString() + "\n");
-                    FileOutputStream fos = new FileOutputStream(new File("/sdcard", path));
-                    fos.write(sb.toString().getBytes());
-                    fos.close();
-                    Toast.makeText(MainActivity.this, "Saved to " + path, Toast.LENGTH_SHORT).show();
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
+                saveWithFilePicker();
             }
         });
+    }
+
+    private void saveWithFilePicker() {
+        String appName = appPkg.getText().toString().trim();
+        if (appName.isEmpty()) {
+            Toast.makeText(this, "Package name cannot be empty", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        
+        String fileName = appName + "_signatures.txt";
+        Intent intent = new Intent(Intent.ACTION_CREATE_DOCUMENT);
+        intent.addCategory(Intent.CATEGORY_OPENABLE);
+        intent.setType("text/plain");
+        intent.putExtra(Intent.EXTRA_TITLE, fileName);
+        startActivityForResult(intent, CREATE_FILE_REQUEST_CODE);
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == CREATE_FILE_REQUEST_CODE && resultCode == RESULT_OK) {
+            Uri uri = data.getData();
+            if (uri != null) {
+                saveFileToUri(uri);
+            }
+        }
+    }
+
+    private void saveFileToUri(Uri uri) {
+        try {
+            String content = resultBase64.getText().toString() + "\n" + 
+                            resultCpp.getText().toString();
+            java.io.OutputStream os = getContentResolver().openOutputStream(uri);
+            if (os != null) {
+                os.write(content.getBytes());
+                os.close();
+                Toast.makeText(this, "✅ Saved successfully!", Toast.LENGTH_LONG).show();
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            Toast.makeText(this, "❌ Error: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+        }
     }
 }
