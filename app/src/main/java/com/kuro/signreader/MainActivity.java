@@ -1,5 +1,6 @@
 package com.kuro.signreader;
 
+import android.app.Activity;
 import android.content.Intent;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
@@ -17,6 +18,7 @@ import androidx.annotation.Nullable;
 
 import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
+import java.io.OutputStream;
 
 public class MainActivity extends Activity {
     EditText appPkg;
@@ -113,7 +115,7 @@ public class MainActivity extends Activity {
         try {
             String content = resultBase64.getText().toString() + "\n" + 
                             resultCpp.getText().toString();
-            java.io.OutputStream os = getContentResolver().openOutputStream(uri);
+            OutputStream os = getContentResolver().openOutputStream(uri);
             if (os != null) {
                 os.write(content.getBytes());
                 os.close();
